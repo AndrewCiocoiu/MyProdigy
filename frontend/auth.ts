@@ -53,14 +53,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Custom JWT encoding/decoding so the Go backend can verify NextAuth JWTs
     async encode({ token, secret }) {
       if (!token) return ""
+      const secretKey = typeof secret === "string" ? secret : (Array.isArray(secret) ? secret[0] : String(secret))
       // Use standard HS256 signing instead of NextAuth's default JWE encryption
-      return jwt.sign(token, secret, { algorithm: "HS256" })
+      return jwt.sign(token, secretKey, { algorithm: "HS256" })
     },
     async decode({ token, secret }) {
       if (!token) return null
       try {
+        const secretKey = typeof secret === "string" ? secret : (Array.isArray(secret) ? secret[0] : String(secret))
         // Verify standard HS256 signature
-        return jwt.verify(token, secret, { algorithms: ["HS256"] }) as any
+        return jwt.verify(token, secretKey, { algorithms: ["HS256"] }) as any
       } catch (e) {
         logError("JWT verification failed", e)
         return null

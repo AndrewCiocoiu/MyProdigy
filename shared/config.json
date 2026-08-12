@@ -1,0 +1,7 @@
+{
+  "waiting_room_timeout_seconds": 600,
+  "grace_period_seconds": 180,
+  "rescue_mission_duration_minutes": 60,
+  "default_city": "Hometown",
+  "available_cities": ["Hometown", "Rome", "NYC", "Singapore", "SF", "Zurich"]
+}

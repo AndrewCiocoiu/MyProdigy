@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: prodigy-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prodigy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prodigy_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-prodigy_db}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: prodigy-backend
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    volumes:
+      - ./backend:/app
+      - /app/tmp # Prevent caching conflict with hot reload temp builds
+    environment:
+      PORT: ${PORT:-8080}
+      DATABASE_URL: ${DATABASE_URL:-postgres://prodigy:prodigy_pass@db:5432/prodigy_db?sslmode=disable}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secret-nextauth-token-key-change-me-in-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: prodigy-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Avoid overriding container-installed dependencies
+      - /app/.next # Avoid overriding container-generated Next.js builds
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secret-nextauth-token-key-change-me-in-production}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local

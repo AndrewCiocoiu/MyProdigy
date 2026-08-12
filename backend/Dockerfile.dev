@@ -1,0 +1,19 @@
+FROM golang:alpine
+
+# Install git and compile tools for potential Cgo dependencies
+RUN apk add --no-cache git build-base
+
+# Install Air for hot-reloading
+RUN go install github.com/air-verse/air@latest
+
+WORKDIR /app
+
+# Copy go.mod and download dependencies
+COPY go.mod ./
+RUN go mod download
+
+# Copy the rest of the code
+COPY . .
+
+# Run tidy to resolve and write go.sum, then start Air
+CMD ["sh", "-c", "go mod tidy && air -c .air.toml"]

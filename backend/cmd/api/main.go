@@ -82,6 +82,10 @@ func main() {
 	var householdRepo *repository.HouseholdRepository
 	var householdService *service.HouseholdService
 	var householdHandler *handlers.HouseholdHandler
+	var sessionRepo *repository.SessionRepository
+	var sessionService *service.SessionService
+	var sessionHandler *handlers.SessionHandler
+
 	if db != nil {
 		userRepo = repository.NewUserRepository(db)
 		wsHandler = ws.NewWSHandler(hub, userRepo)
@@ -90,6 +94,9 @@ func main() {
 		householdRepo = repository.NewHouseholdRepository(db)
 		householdService = service.NewHouseholdService(householdRepo, userRepo, hub)
 		householdHandler = handlers.NewHouseholdHandler(householdService)
+		sessionRepo = repository.NewSessionRepository(db)
+		sessionService = service.NewSessionService(sessionRepo, householdRepo, userRepo, hub)
+		sessionHandler = handlers.NewSessionHandler(sessionService)
 	}
 
 	// Health check endpoint
@@ -155,10 +162,44 @@ func main() {
 		})
 	})
 
+	// Focus Session routes (Protected by AuthMiddleware)
+	r.Route("/api/session", func(r chi.Router) {
+		r.Use(customMiddleware.AuthMiddleware)
+
+		r.Get("/current", func(w http.ResponseWriter, r *http.Request) {
+			if sessionHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			sessionHandler.GetCurrentSession(w, r)
+		})
+		r.Post("/start", func(w http.ResponseWriter, r *http.Request) {
+			if sessionHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			sessionHandler.StartSession(w, r)
+		})
+		r.Post("/join", func(w http.ResponseWriter, r *http.Request) {
+			if sessionHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			sessionHandler.JoinSession(w, r)
+		})
+		r.Post("/end", func(w http.ResponseWriter, r *http.Request) {
+			if sessionHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			sessionHandler.EndSession(w, r)
+		})
+	})
+
 	// WebSocket route (Protected by AuthMiddleware)
-	r.With(customMiddleware.AuthMiddleware).Get("/ws", wsHandler.ServeWS)
-
-
+	if wsHandler != nil {
+		r.With(customMiddleware.AuthMiddleware).Get("/ws", wsHandler.ServeWS)
+	}
 
 	// Setup Server
 	srv := &http.Server{

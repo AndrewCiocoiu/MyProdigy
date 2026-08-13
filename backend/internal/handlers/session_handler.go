@@ -1,22 +1,124 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
+
+	"myprodigy/backend/internal/middleware"
+	"myprodigy/backend/internal/models"
+	"myprodigy/backend/internal/service"
 )
 
-// SessionHandler handles focus session requests (REST endpoints).
+// SessionHandler handles focus session REST endpoints.
 type SessionHandler struct {
-	// dependencies like services can be injected here
+	sessionService *service.SessionService
 }
 
-func NewSessionHandler() *SessionHandler {
-	return &SessionHandler{}
+func NewSessionHandler(sessionService *service.SessionService) *SessionHandler {
+	return &SessionHandler{
+		sessionService: sessionService,
+	}
 }
 
-func (h *SessionHandler) CreateSoloSession(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+// StartSession handles POST /api/session/start
+func (h *SessionHandler) StartSession(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(middleware.UserContextKey).(*middleware.Claims)
+	if !ok || claims.ID == "" {
+		http.Error(w, `{"message":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var req models.StartSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"message":"Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	activeSession, err := h.sessionService.StartSession(r.Context(), claims.ID, req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err == service.ErrDurationTooShort || err == service.ErrNotInHousehold || err == service.ErrSessionInProgress {
+			status = http.StatusBadRequest
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(activeSession)
 }
 
-func (h *SessionHandler) CreateJointSession(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+// JoinSession handles POST /api/session/join
+func (h *SessionHandler) JoinSession(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(middleware.UserContextKey).(*middleware.Claims)
+	if !ok || claims.ID == "" {
+		http.Error(w, `{"message":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	activeSession, err := h.sessionService.JoinSession(r.Context(), claims.ID)
+	if err != nil {
+		status := http.StatusBadRequest
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(activeSession)
+}
+
+// EndSession handles POST /api/session/end
+func (h *SessionHandler) EndSession(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(middleware.UserContextKey).(*middleware.Claims)
+	if !ok || claims.ID == "" {
+		http.Error(w, `{"message":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	activeSession, err := h.sessionService.EndSession(r.Context(), claims.ID)
+	if err != nil {
+		status := http.StatusBadRequest
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Session ended successfully",
+		"session": activeSession,
+	})
+}
+
+// GetCurrentSession handles GET /api/session/current
+func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(middleware.UserContextKey).(*middleware.Claims)
+	if !ok || claims.ID == "" {
+		http.Error(w, `{"message":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	activeSession, err := h.sessionService.GetCurrentSession(r.Context(), claims.ID)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if activeSession == nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"activeSession": nil})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"activeSession": activeSession})
 }

@@ -2,8 +2,6 @@ package models
 
 import "time"
 
-
-
 type Pet struct {
 	ID                string    `json:"id" db:"id"`
 	HouseholdID       string    `json:"householdId" db:"household_id"`
@@ -30,6 +28,29 @@ type JointSession struct {
 	ExpectedEndAt   time.Time `json:"expectedEndAt" db:"expected_end_at"`
 	Status          string    `json:"status" db:"status"` // "waiting_for_partner", "session_active", "completed", "abandoned"
 	DurationMinutes int       `json:"durationMinutes" db:"duration_minutes"`
+}
+
+type ActiveSession struct {
+	ID              string    `json:"id"`
+	HouseholdID     string    `json:"householdId"`
+	CreatorUserID   string    `json:"creatorUserId"`
+	CreatorName     string    `json:"creatorName"`
+	SessionType     string    `json:"sessionType"` // "JOINT" or "SOLO"
+	DurationMinutes int       `json:"durationMinutes"`
+	StartedAt       time.Time `json:"startedAt"`
+	ExpectedEndAt   time.Time `json:"expectedEndAt"`
+	LobbyExpiresAt  time.Time `json:"lobbyExpiresAt"`
+	Status          string    `json:"status"` // "waiting_for_partner", "session_active", "solo_active", "completed", "aborted"
+	ParticipantIDs  []string  `json:"participantIds"`
+}
+
+type StartSessionRequest struct {
+	DurationMinutes int    `json:"durationMinutes"`
+	SessionType     string `json:"sessionType"` // "JOINT" or "SOLO"
+}
+
+type EndSessionRequest struct {
+	Status string `json:"status,omitempty"` // "aborted" or "completed"
 }
 
 type PorchDropoff struct {

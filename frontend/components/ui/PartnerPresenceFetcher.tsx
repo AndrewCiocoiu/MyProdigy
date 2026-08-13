@@ -7,10 +7,7 @@ import { HouseholdStatusResponse } from "@/types/models";
 
 /**
  * PartnerPresenceFetcher — client component that loads household status once
- * and passes partnerId + partnerName into the real-time PartnerPresence indicator.
- *
- * Separated from PartnerPresence so the presence dot itself has zero data-fetching
- * logic and only subscribes to WebSocket events.
+ * and passes partnerId + partnerName + initialOnline into the real-time PartnerPresence indicator.
  */
 export function PartnerPresenceFetcher() {
   const [status, setStatus] = useState<HouseholdStatusResponse | null>(null);
@@ -39,6 +36,7 @@ export function PartnerPresenceFetcher() {
     <PartnerPresence
       partnerId={status.partnerId}
       partnerName={status.partnerName}
+      initialOnline={status.isPartnerOnline}
     />
   );
 }

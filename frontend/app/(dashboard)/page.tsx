@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import Link from "next/link";
+import { MainPageSessionWidget } from "@/components/timer/MainPageSessionWidget";
 
 export const metadata: Metadata = {
   title: "Dashboard - MyProdigy",
@@ -8,12 +10,24 @@ export const metadata: Metadata = {
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
+      {/* Live Session Notification Widget (appears when partner starts working or session is active) */}
+      <MainPageSessionWidget />
+
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-2xl font-bold text-zinc-950 dark:text-zinc-50">Your Shared Home</h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Check on your virtual pet and upgrade your house together.
           </p>
+        </div>
+        <div>
+          <Link
+            href="/focus"
+            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-zinc-800 active:scale-95 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            <span>⏱️</span>
+            <span>Start Focus Sprint</span>
+          </Link>
         </div>
       </div>
 

@@ -6,9 +6,9 @@ export const WS_EVENTS = {
   TIMER_START: "timer_start",
   TIMER_SYNC: "timer_sync",
   TIMER_COMPLETE: "timer_complete",
+  SESSION_ENDED: "session_ended",
   POKE_SENT: "poke_sent",
   POKE_RECEIVED: "poke_received",
 } as const;
-
 
 export type WSEventType = typeof WS_EVENTS[keyof typeof WS_EVENTS];

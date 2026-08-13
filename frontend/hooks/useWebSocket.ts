@@ -24,23 +24,20 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 let globalWSClient: WebSocketClient | null = null;
-// Queue subscriptions that arrive before the client is ready
-let pendingSubscriptions: PendingSubscription[] = [];
+let activeListeners = new Map<string, Set<(data: unknown) => void>>();
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean>(() => {
+    return Boolean(globalWSClient?.isConnected);
+  });
   const [lastEvent, setLastEvent] = useState<WSMessagePayload | null>(null);
-  // Track whether the WS client is ready so subscribe() can gate correctly
-  const clientReadyRef = useRef(false);
 
   useEffect(() => {
     if (!session?.user) {
       if (globalWSClient) {
         globalWSClient.disconnect();
         globalWSClient = null;
-        clientReadyRef.current = false;
-        pendingSubscriptions = [];
       }
       setIsConnected(false);
       return;
@@ -61,21 +58,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           globalWSClient = new WebSocketClient(wsBaseUrl, token);
         }
 
+        // Check if already open
+        if (globalWSClient.isConnected && isMounted) {
+          setIsConnected(true);
+        }
+
         globalWSClient.on("status_change", (data: { status: string }) => {
           if (!isMounted) return;
           const connected = data.status === "connected";
           setIsConnected(connected);
+        });
 
-          // Once the socket is confirmed open, replay any subscriptions that arrived early
-          if (connected) {
-            clientReadyRef.current = true;
-            const pending = pendingSubscriptions.splice(0);
-            for (const { event, callback } of pending) {
-              globalWSClient?.on(event, callback);
-            }
-          } else {
-            clientReadyRef.current = false;
-          }
+        // Re-attach any listeners registered so far
+        activeListeners.forEach((callbacks, event) => {
+          callbacks.forEach((cb) => {
+            globalWSClient?.on(event, cb);
+          });
         });
 
         globalWSClient.connect();
@@ -93,22 +91,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Subscribe to a WS event.
-   * If the client isn't ready yet the subscription is queued and replayed
-   * as soon as the connection opens — no events are lost.
+   * Tracks callbacks in activeListeners and binds them to the underlying client.
    */
   const subscribe = (event: string, callback: (data: unknown) => void) => {
-    if (globalWSClient && clientReadyRef.current) {
-      return globalWSClient.on(event, callback);
+    if (!activeListeners.has(event)) {
+      activeListeners.set(event, new Set());
+    }
+    activeListeners.get(event)!.add(callback);
+
+    let unsubClient: (() => void) | undefined;
+    if (globalWSClient) {
+      unsubClient = globalWSClient.on(event, callback);
     }
 
-    // Queue it for later replay
-    const pending: PendingSubscription = { event, callback };
-    pendingSubscriptions.push(pending);
-
-    // Return an unsubscribe function that removes from both the queue and the real client
     return () => {
-      pendingSubscriptions = pendingSubscriptions.filter((p) => p !== pending);
-      globalWSClient?.on(event, callback); // no-op if never registered
+      activeListeners.get(event)?.delete(callback);
+      unsubClient?.();
     };
   };
 

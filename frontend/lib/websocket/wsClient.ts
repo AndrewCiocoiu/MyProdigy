@@ -3,13 +3,17 @@ export class WebSocketClient {
   private url: string;
   private token: string;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectInterval = 3000; // 3 seconds
+  private maxReconnectAttempts = 10;
+  private reconnectInterval = 2000; // 2 seconds
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
   constructor(url: string, token: string) {
     this.url = url;
     this.token = token;
+  }
+
+  public get isConnected(): boolean {
+    return this.socket !== null && this.socket.readyState === WebSocket.OPEN;
   }
 
   connect() {
@@ -52,7 +56,11 @@ export class WebSocketClient {
 
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error("[WS] Max reconnect attempts reached");
+      console.warn("[WS] Max reconnect attempts reached, retrying later...");
+      setTimeout(() => {
+        this.reconnectAttempts = 0;
+        this.connect();
+      }, 5000);
       return;
     }
 

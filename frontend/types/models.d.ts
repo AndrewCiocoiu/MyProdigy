@@ -71,6 +71,25 @@ export interface JointSession {
   durationMinutes: number
 }
 
+export interface ActiveSession {
+  id: string
+  householdId: string
+  creatorUserId: string
+  creatorName: string
+  sessionType: "JOINT" | "SOLO"
+  durationMinutes: number
+  startedAt: string
+  expectedEndAt: string
+  lobbyExpiresAt: string
+  status: "waiting_for_partner" | "session_active" | "solo_active" | "completed" | "aborted"
+  participantIds: string[]
+}
+
+export interface StartSessionRequest {
+  durationMinutes: number
+  sessionType?: "JOINT" | "SOLO"
+}
+
 export interface PorchDropoff {
   id: string
   senderId: string

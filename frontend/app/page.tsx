@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/auth";
 import { HomeContent } from "@/components/auth/HomeContent";
+import { GlobalSessionBanner } from "@/components/timer/GlobalSessionBanner";
 import Link from "next/link";
 
 export default async function Home() {
@@ -7,25 +8,52 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+      {/* Global Real-Time Focus Session Join Banner */}
+      <GlobalSessionBanner />
+
       {/* Navigation Header */}
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">MyProdigy</h1>
+          <div className="flex items-center gap-6">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">MyProdigy</h1>
+            {session && (
+              <nav className="flex items-center space-x-4 text-sm font-semibold">
+                <Link
+                  href="/"
+                  className="text-zinc-900 dark:text-zinc-50 hover:underline"
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/focus"
+                  className="text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 transition flex items-center gap-1.5"
+                >
+                  <span>Focus Room ⏱️</span>
+                </Link>
+              </nav>
+            )}
+          </div>
+
           <div>
             {session ? (
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/login" });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-zinc-500 hidden sm:inline">
+                  {session.user?.email}
+                </span>
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut({ redirectTo: "/login" });
+                  }}
                 >
-                  Log Out
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    Log Out
+                  </button>
+                </form>
+              </div>
             ) : (
               <div className="flex gap-3">
                 <Link
@@ -79,5 +107,3 @@ export default async function Home() {
     </div>
   );
 }
-
-

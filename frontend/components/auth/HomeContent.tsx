@@ -9,6 +9,8 @@ import Link from "next/link";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { WS_EVENTS } from "@/types/events";
 
+import { MainPageSessionWidget } from "@/components/timer/MainPageSessionWidget";
+
 interface HomeContentProps {
   userName?: string;
   userId?: string;
@@ -140,6 +142,9 @@ export function HomeContent({ userName, userId }: HomeContentProps) {
   // Gate 2: User HAS a household -> Unlocked game access
   return (
     <div className="w-full max-w-2xl space-y-6">
+      {/* Live Focus Session Alert Widget */}
+      <MainPageSessionWidget />
+
       <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-3xl dark:bg-emerald-950">
           🏡

@@ -173,6 +173,13 @@ func main() {
 			}
 			sessionHandler.GetCurrentSession(w, r)
 		})
+		r.Get("/history", func(w http.ResponseWriter, r *http.Request) {
+			if sessionHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			sessionHandler.GetSessionHistory(w, r)
+		})
 		r.Post("/start", func(w http.ResponseWriter, r *http.Request) {
 			if sessionHandler == nil {
 				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)

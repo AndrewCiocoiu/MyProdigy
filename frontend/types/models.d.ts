@@ -90,6 +90,33 @@ export interface StartSessionRequest {
   sessionType?: "JOINT" | "SOLO"
 }
 
+export interface FocusSessionHistoryItem {
+  id: string
+  householdId: string
+  userId?: string
+  userName?: string
+  sessionType: "JOINT" | "SOLO" | "RESCUE"
+  durationMins: number
+  status: "COMPLETED" | "ABORTED"
+  startedAt: string
+  endedAt: string
+}
+
+export interface FocusSessionHistorySummary {
+  totalSessions: number
+  completedSessions: number
+  abortedSessions: number
+  totalFocusMinutes: number
+  jointSessions: number
+  soloSessions: number
+}
+
+export interface FocusSessionHistoryResponse {
+  sessions: FocusSessionHistoryItem[]
+  summary: FocusSessionHistorySummary
+  total: number
+}
+
 export interface PorchDropoff {
   id: string
   senderId: string

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"myprodigy/backend/internal/models"
 )
 
 type SessionRepository struct {
@@ -92,4 +94,99 @@ func (r *SessionRepository) LogFocusSession(
 	}
 
 	return tx.Commit(ctx)
+}
+
+// GetHouseholdSessionHistory fetches all logged sessions for a household and calculates summary metrics.
+func (r *SessionRepository) GetHouseholdSessionHistory(
+	ctx context.Context,
+	partnershipID string,
+	limit, offset int,
+) ([]*models.FocusSessionHistoryItem, *models.FocusSessionHistorySummary, int, error) {
+	if r.db == nil || r.db.Pool == nil {
+		return []*models.FocusSessionHistoryItem{}, &models.FocusSessionHistorySummary{}, 0, nil
+	}
+
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// 1. Fetch paginated session rows
+	query := `
+		SELECT 
+			fs.id,
+			fs.partnership_id,
+			fs.user_id,
+			u.display_name,
+			fs.session_type,
+			fs.duration_mins,
+			fs.status,
+			fs.started_at,
+			fs.ended_at
+		FROM focus_sessions fs
+		LEFT JOIN users u ON fs.user_id = u.id
+		WHERE fs.partnership_id = $1
+		ORDER BY fs.started_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.db.Pool.Query(ctx, query, partnershipID, limit, offset)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("failed querying focus sessions history: %w", err)
+	}
+	defer rows.Close()
+
+	sessions := make([]*models.FocusSessionHistoryItem, 0)
+	for rows.Next() {
+		item := &models.FocusSessionHistoryItem{}
+		err := rows.Scan(
+			&item.ID,
+			&item.HouseholdID,
+			&item.UserID,
+			&item.UserName,
+			&item.SessionType,
+			&item.DurationMins,
+			&item.Status,
+			&item.StartedAt,
+			&item.EndedAt,
+		)
+		if err != nil {
+			return nil, nil, 0, fmt.Errorf("failed scanning focus session row: %w", err)
+		}
+		sessions = append(sessions, item)
+	}
+
+	// 2. Fetch summary metrics
+	summaryQuery := `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'COMPLETED'),
+			COUNT(*) FILTER (WHERE status = 'ABORTED'),
+			COALESCE(SUM(duration_mins) FILTER (WHERE status = 'COMPLETED'), 0),
+			COUNT(*) FILTER (WHERE session_type = 'JOINT'),
+			COUNT(*) FILTER (WHERE session_type = 'SOLO')
+		FROM focus_sessions
+		WHERE partnership_id = $1
+	`
+	summary := &models.FocusSessionHistorySummary{}
+	var totalCount int
+	err = r.db.Pool.QueryRow(ctx, summaryQuery, partnershipID).Scan(
+		&totalCount,
+		&summary.CompletedSessions,
+		&summary.AbortedSessions,
+		&summary.TotalFocusMinutes,
+		&summary.JointSessions,
+		&summary.SoloSessions,
+	)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("failed calculating focus session summary: %w", err)
+	}
+	summary.TotalSessions = totalCount
+
+	return sessions, summary, totalCount, nil
 }

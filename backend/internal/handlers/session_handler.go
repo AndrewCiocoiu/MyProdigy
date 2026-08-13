@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"myprodigy/backend/internal/middleware"
 	"myprodigy/backend/internal/models"
@@ -121,4 +122,43 @@ func (h *SessionHandler) GetCurrentSession(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]interface{}{"activeSession": activeSession})
+}
+
+// GetSessionHistory handles GET /api/session/history
+func (h *SessionHandler) GetSessionHistory(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(middleware.UserContextKey).(*middleware.Claims)
+	if !ok || claims.ID == "" {
+		http.Error(w, `{"message":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	limit := 50
+	offset := 0
+
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if parsed, err := strconv.Atoi(lStr); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if oStr := r.URL.Query().Get("offset"); oStr != "" {
+		if parsed, err := strconv.Atoi(oStr); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	history, err := h.sessionService.GetSessionHistory(r.Context(), claims.ID, limit, offset)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err == service.ErrNotInHousehold {
+			status = http.StatusBadRequest
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(history)
 }

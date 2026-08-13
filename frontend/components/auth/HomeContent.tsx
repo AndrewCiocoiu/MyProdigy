@@ -11,6 +11,8 @@ import { WS_EVENTS } from "@/types/events";
 
 import { MainPageSessionWidget } from "@/components/timer/MainPageSessionWidget";
 
+import { SessionHistoryView } from "@/components/timer/SessionHistoryView";
+
 interface HomeContentProps {
   userName?: string;
   userId?: string;
@@ -221,6 +223,11 @@ export function HomeContent({ userName, userId }: HomeContentProps) {
             <span className="font-mono text-zinc-800 dark:text-zinc-200">{userId}</span>
           </div>
         </div>
+      </div>
+
+      {/* Household Session History */}
+      <div className="pt-2">
+        <SessionHistoryView />
       </div>
     </div>
   );

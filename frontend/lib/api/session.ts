@@ -1,5 +1,9 @@
 import { apiClient } from "@/lib/api/apiClient";
-import { ActiveSession, StartSessionRequest } from "@/types/models";
+import {
+  ActiveSession,
+  StartSessionRequest,
+  FocusSessionHistoryResponse,
+} from "@/types/models";
 
 async function getAuthToken(providedToken?: string): Promise<string | undefined> {
   if (providedToken) return providedToken;
@@ -52,4 +56,19 @@ export async function endFocusSession(
     method: "POST",
     token: authToken,
   });
+}
+
+export async function getFocusSessionHistory(
+  limit = 50,
+  offset = 0,
+  token?: string
+): Promise<FocusSessionHistoryResponse> {
+  const authToken = await getAuthToken(token);
+  return apiClient<FocusSessionHistoryResponse>(
+    `/api/session/history?limit=${limit}&offset=${offset}`,
+    {
+      method: "GET",
+      token: authToken,
+    }
+  );
 }

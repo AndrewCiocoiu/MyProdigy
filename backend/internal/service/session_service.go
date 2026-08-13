@@ -168,6 +168,7 @@ func (s *SessionService) JoinSession(ctx context.Context, userID string) (*model
 	// Successfully join session
 	activeSession.ParticipantIDs = append(activeSession.ParticipantIDs, userID)
 	activeSession.Status = "session_active"
+	activeSession.SessionType = "JOINT"
 
 	// Broadcast timer_sync over WebSocket to room so both clients sync
 	if s.hub != nil {
@@ -218,12 +219,20 @@ func (s *SessionService) EndSession(ctx context.Context, userID string) (*models
 		durationElapsed = activeSession.DurationMinutes
 	}
 
+	// Determine final sessionType (JOINT if >= 2 participants, SOLO if 1)
+	finalType := "SOLO"
+	if len(activeSession.ParticipantIDs) >= 2 {
+		finalType = "JOINT"
+	}
+
+	creatorID := activeSession.CreatorUserID
+
 	if s.sessionRepo != nil {
 		_ = s.sessionRepo.LogFocusSession(
 			ctx,
 			householdID,
-			nil,
-			activeSession.SessionType,
+			&creatorID,
+			finalType,
 			durationElapsed,
 			dbStatus,
 			activeSession.StartedAt,
@@ -263,6 +272,12 @@ func (s *SessionService) completeSessionIfActive(householdID, sessionID string) 
 	delete(s.activeSessions, householdID)
 	s.sessionsMu.Unlock()
 
+	finalType := "SOLO"
+	if len(activeSession.ParticipantIDs) >= 2 {
+		finalType = "JOINT"
+	}
+	creatorID := activeSession.CreatorUserID
+
 	// Persist completion in DB & award resources atomically
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -271,8 +286,8 @@ func (s *SessionService) completeSessionIfActive(householdID, sessionID string) 
 		_ = s.sessionRepo.LogFocusSession(
 			ctx,
 			householdID,
-			nil,
-			activeSession.SessionType,
+			&creatorID,
+			finalType,
 			activeSession.DurationMinutes,
 			"COMPLETED",
 			activeSession.StartedAt,
@@ -319,12 +334,19 @@ func (s *SessionService) GetCurrentSession(ctx context.Context, userID string) (
 	if now.After(activeSession.ExpectedEndAt) {
 		activeSession.Status = "completed"
 		delete(s.activeSessions, householdID)
+
+		finalType := "SOLO"
+		if len(activeSession.ParticipantIDs) >= 2 {
+			finalType = "JOINT"
+		}
+		creatorID := activeSession.CreatorUserID
+
 		if s.sessionRepo != nil {
 			_ = s.sessionRepo.LogFocusSession(
 				ctx,
 				householdID,
-				nil,
-				activeSession.SessionType,
+				&creatorID,
+				finalType,
 				activeSession.DurationMinutes,
 				"COMPLETED",
 				activeSession.StartedAt,
@@ -340,6 +362,31 @@ func (s *SessionService) GetCurrentSession(ctx context.Context, userID string) (
 	}
 
 	return activeSession, nil
+}
+
+// GetSessionHistory returns the full session history and aggregated metrics for the household.
+func (s *SessionService) GetSessionHistory(ctx context.Context, userID string, limit, offset int) (*models.FocusSessionHistoryResponse, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	if user.PartnershipID == nil {
+		return nil, ErrNotInHousehold
+	}
+
+	householdID := *user.PartnershipID
+
+	sessions, summary, total, err := s.sessionRepo.GetHouseholdSessionHistory(ctx, householdID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed fetching session history: %w", err)
+	}
+
+	return &models.FocusSessionHistoryResponse{
+		Sessions: sessions,
+		Summary:  *summary,
+		Total:    total,
+	}, nil
 }
 
 func generateUUID() string {

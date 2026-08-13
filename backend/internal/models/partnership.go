@@ -53,6 +53,33 @@ type EndSessionRequest struct {
 	Status string `json:"status,omitempty"` // "aborted" or "completed"
 }
 
+type FocusSessionHistoryItem struct {
+	ID           string    `json:"id" db:"id"`
+	HouseholdID  string    `json:"householdId" db:"partnership_id"`
+	UserID       *string   `json:"userId,omitempty" db:"user_id"`
+	UserName     *string   `json:"userName,omitempty" db:"user_name"`
+	SessionType  string    `json:"sessionType" db:"session_type"` // "JOINT", "SOLO", "RESCUE"
+	DurationMins int       `json:"durationMins" db:"duration_mins"`
+	Status       string    `json:"status" db:"status"` // "COMPLETED" or "ABORTED"
+	StartedAt    time.Time `json:"startedAt" db:"started_at"`
+	EndedAt      time.Time `json:"endedAt" db:"ended_at"`
+}
+
+type FocusSessionHistorySummary struct {
+	TotalSessions     int `json:"totalSessions"`
+	CompletedSessions int `json:"completedSessions"`
+	AbortedSessions   int `json:"abortedSessions"`
+	TotalFocusMinutes int `json:"totalFocusMinutes"`
+	JointSessions     int `json:"jointSessions"`
+	SoloSessions      int `json:"soloSessions"`
+}
+
+type FocusSessionHistoryResponse struct {
+	Sessions []*FocusSessionHistoryItem   `json:"sessions"`
+	Summary  FocusSessionHistorySummary   `json:"summary"`
+	Total    int                          `json:"total"`
+}
+
 type PorchDropoff struct {
 	ID          string    `json:"id" db:"id"`
 	SenderID    string    `json:"senderId" db:"sender_id"`

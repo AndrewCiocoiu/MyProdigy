@@ -5,13 +5,13 @@ export const proxy = auth((req) => {
   const isLoggedIn = !!req.auth
   const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/register")
 
-  // Redirect logged-in users away from auth pages
+  // Redirect logged-in users away from auth pages to /dashboard or /
   if (isAuthPage && isLoggedIn) {
     return Response.redirect(new URL("/", req.nextUrl))
   }
 
-  // Redirect unauthenticated users to the login page for protected routes
-  if (!isLoggedIn && !isAuthPage && req.nextUrl.pathname !== "/") {
+  // Redirect unauthenticated users to the login page
+  if (!isLoggedIn && !isAuthPage) {
     return Response.redirect(new URL("/login", req.nextUrl))
   }
 })

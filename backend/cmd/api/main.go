@@ -14,6 +14,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+
+	"myprodigy/backend/internal/handlers"
+	"myprodigy/backend/internal/repository"
+	"myprodigy/backend/internal/service"
 )
 
 func main() {
@@ -54,6 +58,27 @@ func main() {
 		MaxAge:           300, // Maximum value not exceeded by browsers
 	}))
 
+	// Database connection
+	ctx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
+	db, err := repository.Connect(ctx)
+	cancelDB()
+	if err != nil {
+		log.Printf("Warning: Failed to connect to DB: %v (Auth endpoints requiring DB will fail until DB is ready)", err)
+	} else {
+		defer db.Close()
+		log.Println("Database connection pool initialized")
+	}
+
+	// Dependencies setup
+	var userRepo *repository.UserRepository
+	var authService *service.AuthService
+	var authHandler *handlers.AuthHandler
+	if db != nil {
+		userRepo = repository.NewUserRepository(db)
+		authService = service.NewAuthService(userRepo)
+		authHandler = handlers.NewAuthHandler(authService)
+	}
+
 	// Health check endpoint
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -64,6 +89,25 @@ func main() {
 			"version":   "1.0.0",
 		})
 	})
+
+	// Auth routes
+	r.Route("/api/auth", func(r chi.Router) {
+		r.Post("/register", func(w http.ResponseWriter, r *http.Request) {
+			if authHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			authHandler.Register(w, r)
+		})
+		r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
+			if authHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			authHandler.Login(w, r)
+		})
+	})
+
 
 	// Setup Server
 	srv := &http.Server{

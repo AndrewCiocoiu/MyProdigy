@@ -17,15 +17,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         try {
           // Rule 3: Centralized API Calls
-          // We call the Go backend here to verify credentials.
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
-          })
+          // Inside Docker container, process.env.NEXT_PUBLIC_API_URL points to localhost:8080 (client-side).
+          // Server-side node fetch in Docker needs http://prodigy-backend:8080 or http://backend:8080.
+          const isServer = typeof window === "undefined"
+          const defaultInternalUrl = process.env.BACKEND_INTERNAL_URL || (isServer ? "http://prodigy-backend:8080" : "http://localhost:8080")
+          const baseUrl = process.env.BACKEND_INTERNAL_URL || (isServer ? defaultInternalUrl : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080")
+
+          let res: Response
+          try {
+            res = await fetch(`${baseUrl}/api/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password,
+              }),
+            })
+          } catch (fetchErr) {
+            // Fallback attempt if first hostname failed inside container
+            const fallbackUrl = baseUrl.includes("prodigy-backend")
+              ? "http://backend:8080"
+              : "http://localhost:8080"
+            res = await fetch(`${fallbackUrl}/api/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password,
+              }),
+            })
+          }
 
           if (!res.ok) {
             return null
@@ -62,7 +83,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       try {
         const secretKey = typeof secret === "string" ? secret : (Array.isArray(secret) ? secret[0] : String(secret))
         // Verify standard HS256 signature
-        return jwt.verify(token, secretKey, { algorithms: ["HS256"] }) as any
+        const decoded = jwt.verify(token, secretKey, { algorithms: ["HS256"] })
+        return typeof decoded === "object" && decoded !== null ? (decoded as Record<string, unknown>) : null
       } catch (e) {
         logError("JWT verification failed", e)
         return null

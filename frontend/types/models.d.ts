@@ -7,6 +7,13 @@ export interface User {
   createdAt: string
 }
 
+export interface AuthResponse {
+  id: string
+  email: string
+  name: string
+  partnershipId?: string
+}
+
 export interface Household {
   id: string
   name: string

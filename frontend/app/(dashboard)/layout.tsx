@@ -1,4 +1,5 @@
 import React from "react";
+import { UserNav } from "@/components/auth/UserNav";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,8 +12,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <header className="border-b border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">MyProdigy</h1>
-          <nav className="flex space-x-4">
+          <nav className="flex items-center space-x-4">
             <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Cozy Focus Space</span>
+            <UserNav />
           </nav>
         </div>
       </header>

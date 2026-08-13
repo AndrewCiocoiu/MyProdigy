@@ -51,6 +51,7 @@ services:
     environment:
       PORT: 3000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8080}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secret-nextauth-token-key-change-me-in-production}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     depends_on:

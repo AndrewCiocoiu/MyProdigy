@@ -13,8 +13,8 @@ export class WebSocketClient {
   }
 
   connect() {
-    if (this.socket) {
-      this.socket.close();
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+      return;
     }
 
     // Append token as query parameter for Auth Interception (Go Handlers/Middleware verification)

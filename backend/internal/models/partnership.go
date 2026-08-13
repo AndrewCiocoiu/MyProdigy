@@ -2,18 +2,7 @@ package models
 
 import "time"
 
-type Household struct {
-	ID        string    `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	OwnerID   string    `json:"ownerId" db:"owner_id"`
-	PetLevel  int       `json:"petLevel" db:"pet_level"`
-	City      string    `json:"city" db:"city"`
-	Wood      int       `json:"wood" db:"wood"`
-	Stone     int       `json:"stone" db:"stone"`
-	Coins     int       `json:"coins" db:"coins"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
-}
+
 
 type Pet struct {
 	ID                string    `json:"id" db:"id"`

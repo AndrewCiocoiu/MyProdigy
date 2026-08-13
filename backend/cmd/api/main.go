@@ -15,9 +15,11 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 
+	customMiddleware "myprodigy/backend/internal/middleware"
 	"myprodigy/backend/internal/handlers"
 	"myprodigy/backend/internal/repository"
 	"myprodigy/backend/internal/service"
+	"myprodigy/backend/internal/ws"
 )
 
 func main() {
@@ -46,7 +48,6 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(60 * time.Second))
 
 	// CORS Configuration
 	r.Use(cors.Handler(cors.Options{
@@ -69,14 +70,26 @@ func main() {
 		log.Println("Database connection pool initialized")
 	}
 
+	// Initialize WebSocket Hub
+	hub := ws.NewHub()
+	go hub.Run()
+	var wsHandler *ws.WSHandler
+
 	// Dependencies setup
 	var userRepo *repository.UserRepository
 	var authService *service.AuthService
 	var authHandler *handlers.AuthHandler
+	var householdRepo *repository.HouseholdRepository
+	var householdService *service.HouseholdService
+	var householdHandler *handlers.HouseholdHandler
 	if db != nil {
 		userRepo = repository.NewUserRepository(db)
+		wsHandler = ws.NewWSHandler(hub, userRepo)
 		authService = service.NewAuthService(userRepo)
 		authHandler = handlers.NewAuthHandler(authService)
+		householdRepo = repository.NewHouseholdRepository(db)
+		householdService = service.NewHouseholdService(householdRepo, userRepo, hub)
+		householdHandler = handlers.NewHouseholdHandler(householdService)
 	}
 
 	// Health check endpoint
@@ -107,6 +120,44 @@ func main() {
 			authHandler.Login(w, r)
 		})
 	})
+
+	// Household routes (Protected by AuthMiddleware)
+	r.Route("/api/household", func(r chi.Router) {
+		r.Use(customMiddleware.AuthMiddleware)
+
+		r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
+			if householdHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			householdHandler.GetStatus(w, r)
+		})
+		r.Post("/invite", func(w http.ResponseWriter, r *http.Request) {
+			if householdHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			householdHandler.GenerateInvite(w, r)
+		})
+		r.Post("/join", func(w http.ResponseWriter, r *http.Request) {
+			if householdHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			householdHandler.JoinHousehold(w, r)
+		})
+		r.Post("/leave", func(w http.ResponseWriter, r *http.Request) {
+			if householdHandler == nil {
+				http.Error(w, `{"message":"Database connection unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			householdHandler.LeaveHousehold(w, r)
+		})
+	})
+
+	// WebSocket route (Protected by AuthMiddleware)
+	r.With(customMiddleware.AuthMiddleware).Get("/ws", wsHandler.ServeWS)
+
 
 
 	// Setup Server

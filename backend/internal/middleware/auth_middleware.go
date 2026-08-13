@@ -24,18 +24,23 @@ type Claims struct {
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Unauthorized: missing authorization header", http.StatusUnauthorized)
-			return
+		var tokenString string
+
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
 		}
 
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			http.Error(w, "Unauthorized: invalid authorization header format", http.StatusUnauthorized)
-			return
+		if tokenString == "" {
+			tokenString = r.URL.Query().Get("token")
 		}
 
-		tokenString := parts[1]
+		if tokenString == "" {
+			http.Error(w, "Unauthorized: missing authorization token", http.StatusUnauthorized)
+			return
+		}
 		secret := []byte(os.Getenv("NEXTAUTH_SECRET"))
 		if len(secret) == 0 {
 			secret = []byte("super-secret-nextauth-token-key-change-me-in-production")

@@ -16,15 +16,31 @@ export interface AuthResponse {
 
 export interface Household {
   id: string
-  name: string
-  ownerId: string
-  petLevel: number
-  city: string // e.g., "Hometown", "Rome", "NYC", "Singapore", "SF", "Zurich"
-  wood: number
-  stone: number
-  coins: number
+  user1Id: string
+  user2Id: string
+  sharedWood: number
+  sharedStone: number
+  sharedCoins: number
+  currentCityId: number
   createdAt: string
-  updatedAt: string
+}
+
+export interface HouseholdInvite {
+  id: string
+  code: string
+  creatorUserId: string
+  createdAt: string
+  expiresAt: string
+  usedAt?: string
+}
+
+export interface HouseholdStatusResponse {
+  hasHousehold: boolean
+  partnershipId?: string
+  activeInvite?: HouseholdInvite
+  partnerId?: string
+  partnerName?: string
+  isPartnerOnline: boolean
 }
 
 export interface Pet {
